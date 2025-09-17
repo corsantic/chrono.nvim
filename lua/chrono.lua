@@ -10,6 +10,38 @@ M.config = {
 }
 
 
+local function create_window()
+  start_win = api.nvim_get_current_win()
+
+  api.nvim_command('botright vnew')
+  win = api.nvim_get_current_win()
+  buf = api.nvim_get_current_buf()
+
+  api.nvim_buf_set_name(buf, "Epoch " .. buf)
+
+
+  -- prevent the buffer from being saved
+  api.nvim_set_option_value('buftype', 'nofile', { scope = 'local', buf = buf })
+  -- if hidden wipe the buffer
+  api.nvim_set_option_value('bufhidden', 'wipe', { scope = 'local', buf = buf })
+  -- we do not need swapfile for this
+  api.nvim_set_option_value('swapfile', false, { scope = 'local', buf = buf })
+  -- we do not want our file overlap with other filetypes
+  api.nvim_set_option_value('filetype', 'nvim-chrono', { scope = 'local', buf = buf })
+
+
+  api.nvim_set_option_value('wrap', false, { scope = 'local', win = win })
+  api.nvim_set_option_value('cursorline', true, { scope = 'local', win = win })
+end
+
+local function redraw(converted_time)
+  if buf == nil or win == nil or not api.nvim_buf_is_valid(buf) or not api.nvim_win_is_valid(win) then
+    create_window()
+  end
+  api.nvim_buf_set_lines(buf, 0, -1, false, { converted_time })
+end
+
+
 local function text_validation(number_selected, selected)
   if (number_selected == nil) then
     error("Selected text is not a valid number")
@@ -64,7 +96,8 @@ function M._convert_to_hrt()
     number_selected, selected)
 
   if not success then
-    print(result)   -- This is the error message
+    print(result) -- This is the error message
+    redraw(result)
     return
   end
 
@@ -76,12 +109,13 @@ function M._convert_to_hrt()
   local converted = os.date("%c", number_selected)
 
   print(converted)
+  redraw(converted)
 end
 
 local function generate_handle_key()
   vim.keymap.set({ "n", "v" }, M.config.convert_key, function()
     M._convert_to_hrt()
-  end, { buffer = false })
+  end)
 end
 
 -- Initialize Chrono
