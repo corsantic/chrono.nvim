@@ -10,6 +10,33 @@ M.config = {
 }
 
 
+local function text_validation(number_selected, selected)
+  if (number_selected == nil) then
+    error("Selected text is not a valid number")
+  end
+
+  local number_length = string.len(selected)
+  if (number_selected < 0) then
+    error("Negative numbers are not supported")
+  end
+
+  if (number_length < 10) then
+    error("Numbers less than 10 cannot be converted")
+  end
+  return number_length
+end
+
+
+local function handle_number(number_length, number_selected)
+  if (number_length >= 16) then
+    number_selected = number_selected / 1000000
+  elseif (number_length >= 13) then
+    number_selected = number_selected / 1000
+  end
+  return number_selected
+end
+
+
 function M._convert_to_hrt()
   if not M.config or not M.config.enabled then
     return
@@ -30,13 +57,29 @@ function M._convert_to_hrt()
   selected = string.sub(lines[1], start_col, end_col)
 
   -- Convert to human readable time
-  selected = os.date("%A, %B %d, %Y", tonumber(selected))
+  local number_selected = tonumber(selected)
+  --  Check if selected text is valid
 
-  print(selected)
+  local success, result = pcall(text_validation,
+    number_selected, selected)
+
+  if not success then
+    print(result)   -- This is the error message
+    return
+  end
+
+  local number_length = result -- This is the returned value
+
+  -- Timestamp diving logic
+  number_selected = handle_number(number_length, number_selected)
+
+  local converted = os.date("%c", number_selected)
+
+  print(converted)
 end
 
 local function generate_handle_key()
-  vim.keymap.set('v', M.config.convert_key, function()
+  vim.keymap.set({ "n", "v" }, M.config.convert_key, function()
     M._convert_to_hrt()
   end, { buffer = false })
 end
