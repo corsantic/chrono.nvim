@@ -4,6 +4,7 @@ local M = {}
 local api = vim.api
 local converter = require('chrono.converter')
 local ui = require('chrono.ui')
+local utils = require('chrono.helper')
 
 -- Configuration
 M.config = {
@@ -23,12 +24,10 @@ local function get_selected_text()
   local end_row, end_col = end_pos[2], end_pos[3]
 
   local lines = api.nvim_buf_get_lines(0, start_row - 1, end_row, false)
-  local selected
-  if #lines ~= 1 then
-    return ("Multi-line selection not supported")
-  end
 
-  selected = string.sub(lines[1], start_col, end_col)
+  assert(#lines == 1, "Multi-line selection not supported")
+
+  local selected = string.sub(lines[1], start_col, end_col)
   return selected
 end
 
@@ -37,7 +36,15 @@ function M._convert_to_hrt()
   if not M.config or not M.config.enabled then
     return
   end
-  local selected = get_selected_text()
+
+  local status, selected = pcall(function()
+    return get_selected_text()
+  end)
+
+  if not status then
+    ui.redraw(utils.clean_error(selected))
+    return
+  end
 
   local converted_time = converter.convert_timestamp(selected, M.config.date_format)
   if converted_time then

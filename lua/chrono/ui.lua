@@ -56,7 +56,7 @@ function M.redraw(converted_time)
   if buf == nil or win == nil or not api.nvim_buf_is_valid(buf) or not api.nvim_win_is_valid(win) then
     create_window()
   end
----@diagnostic disable-next-line: param-type-mismatch
+  ---@diagnostic disable-next-line: param-type-mismatch
   api.nvim_buf_set_lines(buf, 0, -1, false, { converted_time })
 end
 

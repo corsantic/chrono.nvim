@@ -1,6 +1,7 @@
 -- lua/chrono/converter.lua
 -- Pure timestamp conversion logic
 local M = {}
+local utils = require('chrono.helper')
 
 local min_epoch = 0          -- Jan 1, 1970
 local max_epoch = 4102444800 -- Jan 1, 2100
@@ -27,10 +28,6 @@ local function handle_number(number_length, adjusted_time)
   return adjusted_time
 end
 
-local function clean_error(result)
-  return result:match("assertion failed!%s*(.*)") or result:match(":%d+:%s*(.*)") or result
-end
-
 function M.convert_timestamp(selected, date_format)
   date_format = date_format or '%Y-%m-%d %H:%M:%S'
 
@@ -43,7 +40,7 @@ function M.convert_timestamp(selected, date_format)
   end)
 
   if not success then
-    return clean_error(result)
+    return utils.clean_error(result)
   end
 
   local number_length = result -- This is the returned value
@@ -54,7 +51,7 @@ function M.convert_timestamp(selected, date_format)
   end)
 
   if not is_handled then
-    return clean_error(handle_number_result)
+    return utils.clean_error(handle_number_result)
   end
 
   -- convert validated timestamp
