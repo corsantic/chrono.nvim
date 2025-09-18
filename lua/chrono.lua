@@ -7,12 +7,15 @@ local api = vim.api
 M.config = {
   enabled = true,
   convert_key = '<leader>ec',
+  date_format = '%Y-%m-%d %H:%M:%S'
 }
+local buf
+local win
 
+local min_epoch = 0          -- Jan 1, 1970
+local max_epoch = 4102444800 -- Jan 1, 2100
 
 local function create_window()
-  start_win = api.nvim_get_current_win()
-
   -- Create buffer
   buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_name(buf, "Epoch " .. buf)
@@ -59,25 +62,26 @@ local function close_window()
 end
 
 
-local function text_validation(number_selected, selected)
+local function number_lenght(number_selected, selected)
   assert(number_selected ~= nil, "Selected text is not a valid number")
+  assert(number_selected >= 0, "Negative numbers are not supported")
 
   local number_length = string.len(selected)
-
-  assert(number_selected >= 0, "Negative numbers are not supported")
-  assert(number_length >= 10, "Numbers less than 10 cannot be converted")
-
   return number_length
 end
 
-
-local function handle_number(number_length, number_selected)
+local function handle_number(number_length, adjusted_time)
+  -- Check if it's a reasonable timestamp (after 1970 and before year 2100)
   if (number_length >= 16) then
-    number_selected = number_selected / 1000000
+    adjusted_time = adjusted_time / 1000000 -- microseconds
   elseif (number_length >= 13) then
-    number_selected = number_selected / 1000
+    adjusted_time = adjusted_time / 1000    -- millisecond
   end
-  return number_selected
+
+  assert(adjusted_time >= min_epoch and adjusted_time <= max_epoch,
+    "Number doesn't appear to be a valid timestamp")
+
+  return adjusted_time
 end
 
 
@@ -110,10 +114,10 @@ function M._convert_to_hrt()
 
   -- Convert to human readable time
   local number_selected = tonumber(selected)
-  --  Check if selected text is valid
 
+  --  Check if selected text is valid
   local success, result = pcall(function()
-    return text_validation(number_selected, selected)
+    return number_lenght(number_selected, selected)
   end)
 
   if not success then
@@ -124,23 +128,37 @@ function M._convert_to_hrt()
   local number_length = result -- This is the returned value
 
   -- Timestamp diving logic
-  number_selected = handle_number(number_length, number_selected)
+  local is_handled, handle_number_result = pcall(function()
+    return handle_number(number_length, number_selected)
+  end)
 
-  local converted = os.date("%c", number_selected)
+  if not is_handled then
+    redraw(clean_error(handle_number_result))
+    return
+  end
 
+  -- convert validated timestamp
+  local converted = os.date(M.config.date_format, handle_number_result)
+
+  -- draw result
   redraw(converted)
 end
+
+local function set_close_keys()
+  vim.keymap.set("n", "<Esc>", function()
+    close_window()
+  end, { buffer = buf })
+  vim.keymap.set("n", "q", function()
+    close_window()
+  end, { buffer = buf })
+end
+
 
 local function set_keymaps()
   vim.keymap.set("v", M.config.convert_key, function()
     M._convert_to_hrt()
   end)
-  vim.keymap.set("n", "q", function()
-    close_window()
-  end)
-  vim.keymap.set("n", "<Esc>", function()
-    close_window()
-  end)
+  set_close_keys()
 end
 
 -- Initialize Chrono
